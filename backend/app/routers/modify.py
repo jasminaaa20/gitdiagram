@@ -1,17 +1,22 @@
 from fastapi import APIRouter, Request, HTTPException
 from dotenv import load_dotenv
-from app.services.claude_service import ClaudeService
-from app.core.limiter import limiter
+
+# from app.services.claude_service import ClaudeService
+# from app.core.limiter import limiter
 from anthropic._exceptions import RateLimitError
 from app.prompts import SYSTEM_MODIFY_PROMPT
 from pydantic import BaseModel
+from app.services.o3_mini_openrouter_service import OpenRouterO3Service
+
 
 load_dotenv()
 
 router = APIRouter(prefix="/modify", tags=["Claude"])
 
 # Initialize services
-claude_service = ClaudeService()
+# claude_service = ClaudeService()
+o3_service = OpenRouterO3Service()
+
 
 # Define the request body model
 
@@ -25,7 +30,7 @@ class ModifyRequest(BaseModel):
 
 
 @router.post("")
-@limiter.limit("2/minute;10/day")
+# @limiter.limit("2/minute;10/day")
 async def modify(request: Request, body: ModifyRequest):
     try:
         # Check instructions length
@@ -45,7 +50,16 @@ async def modify(request: Request, body: ModifyRequest):
         ]:
             return {"error": "Example repos cannot be modified"}
 
-        modified_mermaid_code = claude_service.call_claude_api(
+        # modified_mermaid_code = claude_service.call_claude_api(
+        #     system_prompt=SYSTEM_MODIFY_PROMPT,
+        #     data={
+        #         "instructions": body.instructions,
+        #         "explanation": body.explanation,
+        #         "diagram": body.current_diagram,
+        #     },
+        # )
+
+        modified_mermaid_code = o3_service.call_o3_api(
             system_prompt=SYSTEM_MODIFY_PROMPT,
             data={
                 "instructions": body.instructions,

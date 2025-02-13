@@ -25,13 +25,19 @@ export function useDiagram(username: string, repo: string) {
     setIsRegenerating(true);
     try {
       const cached = await getCachedDiagram(username, repo);
+      const github_pat = localStorage.getItem("github_pat");
 
       if (cached) {
         setDiagram(cached);
         const date = await getLastGeneratedDate(username, repo);
         setLastGenerated(date ?? undefined);
       } else {
-        const costEstimate = await getCostOfGeneration(username, repo, ""); // empty instructions so lru cache is used
+        const costEstimate = await getCostOfGeneration(
+          username,
+          repo,
+          "",
+          github_pat ?? undefined,
+        ); // empty instructions so lru cache is used
 
         if (costEstimate.error) {
           console.error("Cost estimation failed:", costEstimate.error);
@@ -40,7 +46,11 @@ export function useDiagram(username: string, repo: string) {
 
         setCost(costEstimate.cost ?? "");
 
-        const result = await generateAndCacheDiagram(username, repo);
+        const result = await generateAndCacheDiagram(
+          username,
+          repo,
+          github_pat ?? undefined,
+        );
 
         if (result.error) {
           console.error("Diagram generation failed:", result.error);
@@ -110,6 +120,7 @@ export function useDiagram(username: string, repo: string) {
     setCost("");
     setIsRegenerating(true);
     try {
+      const github_pat = localStorage.getItem("github_pat");
       const costEstimate = await getCostOfGeneration(username, repo, "");
 
       if (costEstimate.error) {
@@ -122,6 +133,7 @@ export function useDiagram(username: string, repo: string) {
       const result = await generateAndCacheDiagram(
         username,
         repo,
+        github_pat ?? undefined,
         instructions,
       );
       if (result.error) {
@@ -148,13 +160,65 @@ export function useDiagram(username: string, repo: string) {
     }
   };
 
+  const handleExportImage = () => {
+    const svgElement = document.querySelector(".mermaid svg");
+    if (!(svgElement instanceof SVGSVGElement)) return;
+
+    try {
+      const canvas = document.createElement("canvas");
+      const scale = 4;
+
+      const bbox = svgElement.getBBox();
+      const transform = svgElement.getScreenCTM();
+      if (!transform) return;
+
+      const width = Math.ceil(bbox.width * transform.a);
+      const height = Math.ceil(bbox.height * transform.d);
+      canvas.width = width * scale;
+      canvas.height = height * scale;
+
+      const ctx = canvas.getContext("2d");
+      if (!ctx) return;
+
+      const svgData = new XMLSerializer().serializeToString(svgElement);
+      const img = new Image();
+
+      img.onload = () => {
+        ctx.fillStyle = "white";
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        ctx.scale(scale, scale);
+        ctx.drawImage(img, 0, 0, width, height);
+
+        const a = document.createElement("a");
+        a.download = "diagram.png";
+        a.href = canvas.toDataURL("image/png", 1.0);
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+      };
+
+      img.src =
+        "data:image/svg+xml;base64," +
+        btoa(unescape(encodeURIComponent(svgData)));
+    } catch (error) {
+      console.error("Error generating PNG:", error);
+    }
+  };
+
   const handleApiKeySubmit = async (apiKey: string) => {
     setShowApiKeyDialog(false);
     setLoading(true);
     setError("");
-
+    const github_pat = localStorage.getItem("github_pat");
     try {
-      const result = await generateAndCacheDiagram(username, repo, "", apiKey);
+      const result = await generateAndCacheDiagram(
+        username,
+        repo,
+        github_pat ?? undefined,
+        "",
+        apiKey,
+      );
       if (result.error) {
         setError(result.error);
       } else if (result.diagram) {
@@ -193,5 +257,6 @@ export function useDiagram(username: string, repo: string) {
     handleApiKeySubmit,
     handleCloseApiKeyDialog,
     handleOpenApiKeyDialog,
+    handleExportImage,
   };
 }

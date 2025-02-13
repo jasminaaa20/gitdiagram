@@ -9,6 +9,9 @@ import { Sparkles } from "lucide-react";
 import React from "react";
 import { CustomizationDropdown } from "./customization-dropdown";
 import { exampleRepos } from "~/lib/exampleRepos";
+import { ExportDropdown } from "./export-dropdown";
+import { ChevronUp, ChevronDown } from "lucide-react";
+import { Switch } from "~/components/ui/switch";
 
 interface MainCardProps {
   isHome?: boolean;
@@ -19,6 +22,10 @@ interface MainCardProps {
   onRegenerate?: (instructions: string) => void;
   onCopy?: () => void;
   lastGenerated?: Date;
+  onExportImage?: () => void;
+  zoomingEnabled?: boolean;
+  onZoomToggle?: () => void;
+  loading?: boolean;
 }
 
 export default function MainCard({
@@ -30,9 +37,16 @@ export default function MainCard({
   onRegenerate,
   onCopy,
   lastGenerated,
+  onExportImage,
+  zoomingEnabled,
+  onZoomToggle,
+  loading,
 }: MainCardProps) {
   const [repoUrl, setRepoUrl] = useState("");
   const [error, setError] = useState("");
+  const [activeDropdown, setActiveDropdown] = useState<
+    "customize" | "export" | null
+  >(null);
   const router = useRouter();
 
   useEffect(() => {
@@ -40,6 +54,12 @@ export default function MainCard({
       setRepoUrl(`https://github.com/${username}/${repo}`);
     }
   }, [username, repo]);
+
+  useEffect(() => {
+    if (loading) {
+      setActiveDropdown(null);
+    }
+  }, [loading]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -69,6 +89,10 @@ export default function MainCard({
     router.push(repoPath);
   };
 
+  const handleDropdownToggle = (dropdown: "customize" | "export") => {
+    setActiveDropdown(activeDropdown === dropdown ? null : dropdown);
+  };
+
   return (
     <Card className="relative w-full max-w-3xl border-[3px] border-black bg-purple-200 p-4 shadow-[8px_8px_0_0_#000000] sm:p-8">
       <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-6">
@@ -90,18 +114,102 @@ export default function MainCard({
 
         {error && <p className="text-sm text-red-600">{error}</p>}
 
-        {showCustomization &&
-          onModify &&
-          onRegenerate &&
-          onCopy &&
-          lastGenerated && (
-            <CustomizationDropdown
-              onModify={onModify}
-              onRegenerate={onRegenerate}
-              onCopy={onCopy}
-              lastGenerated={lastGenerated}
-            />
-          )}
+        {/* Dropdowns Container */}
+        {!isHome && (
+          <div className="space-y-4">
+            {/* Only show buttons and dropdowns when not loading */}
+            {!loading && (
+              <>
+                {/* Buttons Container */}
+                <div className="flex flex-col items-center gap-4 sm:flex-row sm:gap-4">
+                  {showCustomization &&
+                    onModify &&
+                    onRegenerate &&
+                    lastGenerated && (
+                      <button
+                        onClick={(e) => {
+                          e.preventDefault();
+                          handleDropdownToggle("customize");
+                        }}
+                        className={`flex items-center justify-between gap-2 rounded-md border-[3px] border-black px-4 py-2 font-medium text-black transition-colors sm:max-w-[250px] ${
+                          activeDropdown === "customize"
+                            ? "bg-purple-400"
+                            : "bg-purple-300 hover:bg-purple-400"
+                        }`}
+                      >
+                        <span>Customize Diagram</span>
+                        {activeDropdown === "customize" ? (
+                          <ChevronUp size={20} />
+                        ) : (
+                          <ChevronDown size={20} />
+                        )}
+                      </button>
+                    )}
+
+                  {onCopy && lastGenerated && onExportImage && (
+                    <div className="flex flex-col items-center justify-center gap-2">
+                      <button
+                        onClick={(e) => {
+                          e.preventDefault();
+                          handleDropdownToggle("export");
+                        }}
+                        className={`flex items-center justify-between gap-2 rounded-md border-[3px] border-black px-4 py-2 font-medium text-black transition-colors sm:max-w-[250px] ${
+                          activeDropdown === "export"
+                            ? "bg-purple-400"
+                            : "bg-purple-300 hover:bg-purple-400"
+                        }`}
+                      >
+                        <span>Export Diagram</span>
+                        {activeDropdown === "export" ? (
+                          <ChevronUp size={20} />
+                        ) : (
+                          <ChevronDown size={20} />
+                        )}
+                      </button>
+                    </div>
+                  )}
+                  {lastGenerated && (
+                    <>
+                      <label className="font-medium text-black">
+                        Enable Zoom
+                      </label>
+                      <Switch
+                        checked={zoomingEnabled}
+                        onCheckedChange={onZoomToggle}
+                      />
+                    </>
+                  )}
+                </div>
+
+                {/* Dropdown Content */}
+                <div
+                  className={`transition-all duration-200 ${
+                    activeDropdown
+                      ? "pointer-events-auto max-h-[500px] opacity-100"
+                      : "pointer-events-none max-h-0 opacity-0"
+                  }`}
+                >
+                  {activeDropdown === "customize" && (
+                    <CustomizationDropdown
+                      onModify={onModify!}
+                      onRegenerate={onRegenerate!}
+                      lastGenerated={lastGenerated!}
+                      isOpen={true}
+                    />
+                  )}
+                  {activeDropdown === "export" && (
+                    <ExportDropdown
+                      onCopy={onCopy!}
+                      lastGenerated={lastGenerated!}
+                      onExportImage={onExportImage!}
+                      isOpen={true}
+                    />
+                  )}
+                </div>
+              </>
+            )}
+          </div>
+        )}
 
         {/* Example Repositories */}
         {isHome && (

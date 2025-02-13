@@ -7,8 +7,10 @@ import MermaidChart from "~/components/mermaid-diagram";
 import { useDiagram } from "~/hooks/useDiagram";
 import { ApiKeyDialog } from "~/components/api-key-dialog";
 import { ApiKeyButton } from "~/components/api-key-button";
+import { useState } from "react";
 
 export default function Repo() {
+  const [zoomingEnabled, setZoomingEnabled] = useState(false);
   const params = useParams<{ username: string; repo: string }>();
   const {
     diagram,
@@ -25,20 +27,25 @@ export default function Repo() {
     handleApiKeySubmit,
     handleCloseApiKeyDialog,
     handleOpenApiKeyDialog,
-  } = useDiagram(params.username, params.repo);
+    handleExportImage,
+  } = useDiagram(params.username.toLowerCase(), params.repo.toLowerCase());
 
   return (
     <div className="flex min-h-screen flex-col items-center p-4">
       <div className="flex w-full justify-center pt-8">
         <MainCard
           isHome={false}
-          username={params.username}
-          repo={params.repo}
+          username={params.username.toLowerCase()}
+          repo={params.repo.toLowerCase()}
           showCustomization={!loading && !error}
           onModify={handleModify}
           onRegenerate={handleRegenerate}
           onCopy={handleCopy}
           lastGenerated={lastGenerated}
+          onExportImage={handleExportImage}
+          zoomingEnabled={zoomingEnabled}
+          onZoomToggle={() => setZoomingEnabled(!zoomingEnabled)}
+          loading={loading}
         />
       </div>
       <div className="mt-8 flex w-full flex-col items-center gap-8">
@@ -65,7 +72,7 @@ export default function Repo() {
           </div>
         ) : (
           <div className="flex w-full justify-center px-4">
-            <MermaidChart chart={diagram} />
+            <MermaidChart chart={diagram} zoomingEnabled={zoomingEnabled} />
           </div>
         )}
       </div>
